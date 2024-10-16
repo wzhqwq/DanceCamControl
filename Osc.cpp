@@ -1,18 +1,21 @@
 #include "framework.h"
 #include "Osc.h"
 
-#include <oscpp/server.hpp>
-#include <oscpp/print.hpp>
 #include <iostream>
 
-void handlePacket(const OSCPP::Server::Packet& packet)
+using namespace std;
+
+Osc::Osc(int recv_from_port, int send_to_port, function<void(OSCPP::Server::Message const&)> handler)
+	: m_handler(handler)
+{
+	m_udp = make_unique<OscUdp>(recv_from_port, send_to_port);
+}
+
+void Osc::handlePacket(OSCPP::Server::Packet const& packet)
 {
     if (packet.isBundle()) {
         // Convert to bundle
         OSCPP::Server::Bundle bundle(packet);
-
-        // Print the time
-        std::cout << "#bundle " << bundle.time() << std::endl;
 
         // Get packet stream
         OSCPP::Server::PacketStream packets(bundle.packets());
@@ -26,42 +29,92 @@ void handlePacket(const OSCPP::Server::Packet& packet)
     else {
         // Convert to message
         OSCPP::Server::Message msg(packet);
-
-        // Get argument stream
-        OSCPP::Server::ArgStream args(msg.args());
-
-        // Directly compare message address to string with operator==.
-        // For handling larger address spaces you could use e.g. a
-        // dispatch table based on std::unordered_map.
-        if (msg == "/s_new") {
-            const char* name = args.string();
-            const int32_t id = args.int32();
-            std::cout << "/s_new" << " "
-                << name << " "
-                << id << " ";
-            // Get the params array as an ArgStream
-            OSCPP::Server::ArgStream params(args.array());
-            while (!params.atEnd()) {
-                const char* param = params.string();
-                const float value = params.float32();
-                std::cout << param << ":" << value << " ";
-            }
-            std::cout << std::endl;
-        }
-        else if (msg == "/n_set") {
-            const int32_t id = args.int32();
-            const char* key = args.string();
-            // Numeric arguments are converted automatically
-            // to float32 (e.g. from int32).
-            const float value = args.float32();
-            std::cout << "/n_set" << " "
-                << id << " "
-                << key << " "
-                << value << std::endl;
-        }
-        else {
-            // Simply print unknown messages
-            std::cout << "Unknown message: " << msg << std::endl;
-        }
+		m_handler(msg);
     }
+}
+
+void Osc::recvPacket()
+{
+	size_t size = m_udp->recv(m_recvBuffer.data(), m_recvBuffer.size());
+    if (size == 0) return;
+    handlePacket(OSCPP::Server::Packet(m_recvBuffer.data(), size));
+}
+
+void Osc::sendPacket(OSCPP::Client::Packet const& packet)
+{
+	m_udp->send(packet.data(), packet.size());
+}
+
+void Osc::sendBool(const char* address, bool value)
+{
+    array<char, kMaxPacketSize> buffer;
+    OSCPP::Client::Packet packet(buffer.data(), buffer.size());
+    packet
+        //.openBundle(chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count())
+        .openMessage(address, 1)
+        .boolean(value)
+        .closeMessage();
+		//.closeBundle();
+	sendPacket(packet);
+}
+void Osc::sendInt(const char* address, int value)
+{
+	array<char, kMaxPacketSize> buffer;
+	OSCPP::Client::Packet packet(buffer.data(), buffer.size());
+    packet
+        //.openBundle(chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count())
+        .openMessage(address, 1)
+        .int32(value)
+        .closeMessage();
+		//.closeBundle();
+    sendPacket(packet);
+}
+void Osc::sendFloat(const char* address, float value)
+{
+    array<char, kMaxPacketSize> buffer;
+    OSCPP::Client::Packet packet(buffer.data(), buffer.size());
+    packet
+        //.openBundle(chrono::duration_cast<chrono::milliseconds>(chrono::system_clock::now().time_since_epoch()).count())
+        .openMessage(address, 1)
+        .float32(value)
+        .closeMessage();
+        //.closeBundle();
+    sendPacket(packet);
+}
+
+template <typename T>
+void Osc::SetParameter(const char* parameter, T value)
+{
+	throw runtime_error("Unsupported type");
+}
+template <>
+void Osc::SetParameter<bool>(const char* parameter, bool value)
+{
+    sendBool(format("/avatar/parameters/{}", parameter).c_str(), value);
+}
+template <>
+void Osc::SetParameter<int>(const char* parameter, int value)
+{
+	sendInt(format("/avatar/parameters/{}", parameter).c_str(), value);
+}
+template <>
+void Osc::SetParameter<float>(const char* parameter, float value)
+{
+	sendFloat(format("/avatar/parameters/{}", parameter).c_str(), value);
+}
+
+void Osc::Start()
+{
+	m_thread = thread(&Osc::ListernThread, this);
+}
+void Osc::ListernThread()
+{
+	while (!m_terminated) {
+		recvPacket();
+	}
+}
+void Osc::Terminate()
+{
+	m_terminated = true;
+	m_thread.join();
 }
