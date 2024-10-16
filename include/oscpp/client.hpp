@@ -257,6 +257,20 @@ public:
         return *this;
     }
 
+    // NOTE: Additional boolean support
+	Packet& boolean(bool arg)
+	{
+		if (arg)
+		{
+			m_tags.putChar('T');
+		}
+		else
+		{
+			m_tags.putChar('F');
+		}
+		return *this;
+	}
+
     // @throw std::invalid_argument if blob size is greater than
     // std::numeric_limits<int32_t>::max
     Packet& blob(const Blob& arg)

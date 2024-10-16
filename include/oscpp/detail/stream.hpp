@@ -294,7 +294,7 @@ public:
     inline int32_t peekInt32() const
     {
         checkReadable(4);
-        checkAlignment(4);
+        //checkAlignment(4);
         uint32_t un;
         std::memcpy(&un, pos(), 4);
         const uint32_t uh = convert32<B>(un);
@@ -325,7 +325,7 @@ public:
     inline float getFloat32()
     {
         checkReadable(4);
-        checkAlignment(4);
+        //checkAlignment(4);
         uint32_t un;
         std::memcpy(&un, pos(), 4);
         advance(4);

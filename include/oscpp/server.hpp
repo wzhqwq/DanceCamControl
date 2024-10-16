@@ -163,6 +163,17 @@ public:
         throw ParseError("Cannot convert argument to string");
     }
 
+	// NOTE: Additional boolean support
+	bool boolean()
+	{
+		const char t = m_tags.getChar();
+		if (t == 'T')
+			return true;
+		if (t == 'F')
+			return false;
+		throw ParseError("Cannot convert argument to boolean");
+	}
+
     //* Get next blob argument.
     //
     // @throw OSCPP::UnderrunError stream buffer underrun.
