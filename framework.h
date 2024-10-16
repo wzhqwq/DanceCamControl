@@ -40,3 +40,5 @@
 
 //#include "windows.graphics.directx.direct3d11.interop.h"
 #include "direct3d11.interop.h"
+
+#include "opencv2/core.hpp"

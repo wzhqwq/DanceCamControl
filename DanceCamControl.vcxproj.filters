@@ -45,6 +45,12 @@
     <ClInclude Include="capture.interop.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="OscUdp.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="ParameterManager.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DanceCamControl.cpp">
@@ -57,6 +63,12 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="App.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="OscUdp.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="ParameterManager.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

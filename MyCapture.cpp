@@ -3,6 +3,7 @@
 #include "d3dHelpers.h"
 #include "capture.interop.h"
 #include <format>
+#include "opencv2/imgproc.hpp"
 
 using namespace std;
 using namespace winrt;
@@ -51,11 +52,12 @@ WindowRect MyCapture::GetWindowClientRect() {
 void MyCapture::InitializeCapture(const WindowRect& captureRect) {
 	auto wndRect = GetWindowClientRect();
 
-	if (!m_closed) {
-		StopCapture();
-	}
-
 	m_captureRect = captureRect;
+
+	if (capturedImage != nullptr) {
+		delete[] capturedImage;
+	}
+	capturedImage = new uint8_t[m_captureRect.width * m_captureRect.height * 4];
 
 	auto size = SizeInt32{ wndRect.width, wndRect.height };
 	m_lastSize = size;
@@ -87,20 +89,23 @@ void MyCapture::InitializeCapture(const WindowRect& captureRect) {
 
 void MyCapture::StartCapture() {
 	m_session.StartCapture();
+	m_closed = false;
 }
 
 void MyCapture::StopCapture() {
-	m_closed = true;
-	m_frameArrived.revoke();
-	m_session.Close();
-	m_framePool.Close();
+	if (!m_closed) {
+		m_session.Close();
+		m_frameArrived.revoke();
+		m_framePool.Close();
+		m_closed = true;
+	}
+	m_framePool = nullptr;
+	m_session = nullptr;
 	m_item = nullptr;
-	m_lastSize = { 0, 0 };
-	m_device = nullptr;
-	m_d3dDevice = nullptr;
-	m_swapChain = nullptr;
-	m_d3dContext = nullptr;
-	m_textureIn = nullptr;
+	if (capturedImage != nullptr) {
+		delete[] capturedImage;
+		capturedImage = nullptr;
+	}
 }
 
 ICompositionSurface MyCapture::CreateSurface(Compositor const& compositor) {
@@ -159,10 +164,10 @@ void MyCapture::OnFrameArrived(Direct3D11CaptureFramePool const& sender, Foundat
 		return;
 	}
 	auto frame = sender.TryGetNextFrame();
-	if (frame == nullptr || m_lastFrameTime + chrono::milliseconds(3000) > chrono::system_clock::now()) {
+	if (frame == nullptr || !requested) {
 		return;
 	}
-	m_lastFrameTime = chrono::system_clock::now();
+	requested = false;
 
 	auto surface = frame.Surface();
 	auto const interop = surface.as<IDirect3DDxgiInterfaceAccess>();
@@ -182,15 +187,37 @@ void MyCapture::OnFrameArrived(Direct3D11CaptureFramePool const& sender, Foundat
 	D3D11_MAPPED_SUBRESOURCE mapInput;
 	check_hresult(m_d3dContext->Map(m_textureIn.get(), 0, D3D11_MAP_READ, 0, &mapInput));
 
-	auto captureData = new uint8_t[m_captureRect.width * m_captureRect.height * 4];
 	for (int y = 0; y < m_captureRect.height; y++) {
 		memcpy(
-			captureData + y * m_captureRect.width * 4,
+			capturedImage + y * m_captureRect.width * 4,
 			(uint8_t *)(mapInput.pData) + (y + m_captureRect.y) * mapInput.RowPitch + m_captureRect.x * 4,
 			m_captureRect.width * 4
 		);
 	}
 	m_d3dContext->Unmap(m_textureIn.get(), 0);
+}
+
+cv::Mat MyCapture::RequestCapture() {
+	requested = true;
+	while (requested && !m_closed) {
+		this_thread::sleep_for(chrono::milliseconds(10));
+	}
+	return cv::Mat(m_captureRect.height, m_captureRect.width, CV_8UC4, capturedImage);
+}
+
+void MyCapture::SetCanvasImage(cv::Mat const& image)
+{
+	// check channel count
+	if (image.channels() == 1) {
+		// convert to 4 channels
+		cv::Mat bgra;
+		cv::cvtColor(image, bgra, cv::COLOR_GRAY2BGRA);
+		SetCanvasImage(bgra);
+		return;
+	}
+	else if (image.channels() != 4) {
+		throw runtime_error("Invalid channel count");
+	}
 
 	com_ptr<ID3D11Texture2D> backBuffer;
 	check_hresult(m_swapChain->GetBuffer(0, guid_of<ID3D11Texture2D>(), backBuffer.put_void()));
@@ -201,7 +228,7 @@ void MyCapture::OnFrameArrived(Direct3D11CaptureFramePool const& sender, Foundat
 	for (int y = 0; y < m_captureRect.height; y++) {
 		memcpy(
 			(uint8_t*)(mapOutput.pData) + y * mapOutput.RowPitch,
-			captureData + y * m_captureRect.width * 4,
+			image.ptr<uint8_t>(y),
 			m_captureRect.width * 4
 		);
 	}
@@ -211,6 +238,9 @@ void MyCapture::OnFrameArrived(Direct3D11CaptureFramePool const& sender, Foundat
 
 	DXGI_PRESENT_PARAMETERS presentParameters = { 0 };
 	m_swapChain->Present1(1, 0, &presentParameters);
+}
 
-	delete[] captureData;
+SizeInt32 MyCapture::GetCaptureSize() const
+{
+	return SizeInt32{ m_captureRect.width, m_captureRect.height };
 }

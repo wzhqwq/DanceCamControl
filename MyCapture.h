@@ -28,6 +28,10 @@ public:
         winrt::Windows::UI::Composition::Compositor const& compositor);
 	bool IsClosed() const { return m_closed; }
 
+    cv::Mat RequestCapture();
+	void SetCanvasImage(cv::Mat const& image);
+
+    winrt::Windows::Graphics::SizeInt32 GetCaptureSize() const;
 private:
     void OnFrameArrived(
         winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool const& sender,
@@ -56,6 +60,7 @@ private:
     std::atomic<bool> m_closed = false;
     winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool::FrameArrived_revoker m_frameArrived;
 
-	std::chrono::time_point<std::chrono::system_clock> m_lastFrameTime = std::chrono::system_clock::now();
+    uint8_t* capturedImage;
+    std::atomic<bool> requested = false;
 };
 
