@@ -1,19 +1,12 @@
 #pragma once
 
-struct WindowRect
-{
-	int x;
-	int y;
-	int width;
-	int height;
-};
-
 class MyCapture
 {
 public:
     MyCapture(
         std::string const& title,
-        std::string const& className);
+        std::string const& className,
+        winrt::com_ptr<ID3D11Device> d3ddevice);
     ~MyCapture() {
 		StopCapture();
     }
@@ -24,12 +17,9 @@ public:
 
 	void StartCapture();
 	void StopCapture();
-    winrt::Windows::UI::Composition::ICompositionSurface CreateSurface(
-        winrt::Windows::UI::Composition::Compositor const& compositor);
 	bool IsClosed() const { return m_closed; }
 
     cv::Mat RequestCapture();
-	void SetCanvasImage(cv::Mat const& image);
 
     winrt::Windows::Graphics::SizeInt32 GetCaptureSize() const;
 private:
@@ -44,7 +34,6 @@ private:
 	std::string m_className;
 
 	winrt::com_ptr<ID3D11Texture2D> m_textureIn{ nullptr };
-	winrt::com_ptr<ID3D11Texture2D> m_textureOut{ nullptr };
 
     winrt::Windows::Graphics::Capture::GraphicsCaptureItem m_item{ nullptr };
     winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool m_framePool{ nullptr };
@@ -54,10 +43,9 @@ private:
 
     winrt::Windows::Graphics::DirectX::Direct3D11::IDirect3DDevice m_device{ nullptr };
 	winrt::com_ptr<ID3D11Device> m_d3dDevice{ nullptr };
-    winrt::com_ptr<IDXGISwapChain1> m_swapChain{ nullptr };
     winrt::com_ptr<ID3D11DeviceContext> m_d3dContext{ nullptr };
 
-    std::atomic<bool> m_closed = false;
+    std::atomic<bool> m_closed = true;
     winrt::Windows::Graphics::Capture::Direct3D11CaptureFramePool::FrameArrived_revoker m_frameArrived;
 
     uint8_t* capturedImage;

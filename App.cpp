@@ -13,35 +13,12 @@ using namespace Windows::UI::Composition;
 using namespace Windows::Graphics::Capture;
 
 void App::Initialize(ContainerVisual const& root) {
-    m_compositor = root.Compositor();
-    m_root = m_compositor.CreateContainerVisual();
-    m_visual = m_compositor.CreateSpriteVisual();
-    m_brush = m_compositor.CreateSurfaceBrush();
-
-    m_root.RelativeSizeAdjustment({ 1, 1 });
-    root.Children().InsertAtTop(m_root);
-
-    m_visual.AnchorPoint({ 0.5f, 0.5f });
-    m_visual.RelativeOffsetAdjustment({ 0.5f, 0.5f, 0 });
-    m_visual.RelativeSizeAdjustment({ 1, 1 });
-    m_visual.Size({ -80, -80 });
-    m_visual.Brush(m_brush);
-    m_brush.HorizontalAlignmentRatio(0.5f);
-    m_brush.VerticalAlignmentRatio(0.5f);
-    m_brush.Stretch(CompositionStretch::Uniform);
-    m_root.Children().InsertAtTop(m_visual);
+    m_canvas->Initialize(root);
 }
 
 void App::Start() {
     try {
-        if (m_capture == nullptr) {
-		    m_capture = std::make_unique<MyCapture>("VRChat", "UnityWndClass");
-		    //m_capture = std::make_unique<MyCapture>("cv", "CabinetWClass");
-        }
-        if (m_paraMgr == nullptr) {
-			m_paraMgr = std::make_unique<ParameterManager>();
             m_paraMgr->Start();
-        }
 
 		m_thread = thread(&App::StateMachine, this);
 	}
@@ -55,8 +32,7 @@ void App::StateMachine() {
         if (m_terminated) {
             break;
         }
-		if (m_capture != nullptr && m_capture->IsClosed()) {
-			m_capture = std::make_unique<MyCapture>("VRChat", "UnityWndClass");
+		if (m_capture->IsClosed()) {
 			m_stage = WaitForWindow;
 		}
         switch (m_stage)
@@ -100,9 +76,6 @@ void App::TryCapture()
 			captureWidth,
 			captureHeight
 		});
-
-        auto surface = m_capture->CreateSurface(m_compositor);
-        m_brush.Surface(surface);
 
         m_capture->StartCapture();
 		m_stage = WaitForSign;
@@ -168,7 +141,7 @@ void App::DoFixAngle()
 	cv::drawContours(canvas, contours, -1, cv::Scalar(0, 0, 255, 255), cv::FILLED);
     cv::circle(canvas, center, 5, cv::Scalar(255, 0, 0, 255), cv::FILLED);
 
-	m_capture->SetCanvasImage(canvas);
+	m_canvas->SetCanvasImage(canvas);
 
 	// camera vertical fov 60 degree, texture size 800 * 1000
 	float angleVert = atan(((float)center.y / image.rows * 2 - 1) / tan(3.1415926 / 3)) * 180 / 3.1415926;
@@ -209,7 +182,7 @@ void App::DoFixDistance()
     cv::Mat canvas = cv::Mat::zeros(image.rows, image.cols, CV_8UC4);
     cv::drawContours(canvas, contours, -1, cv::Scalar(0, 0, 255, 255), cv::FILLED);
 
-    m_capture->SetCanvasImage(canvas);
+    m_canvas->SetCanvasImage(canvas);
 
 	auto bbox = cv::boundingRect(contours[0]);
     std::vector<float> margins = {
@@ -251,7 +224,7 @@ bool App::CheckSign(const cv::Mat image)
     // stride on B channel
     cv::Mat b;
     cv::extractChannel(image, b, 0);
-    m_capture->SetCanvasImage(b);
+    m_canvas->SetCanvasImage(b);
 
     vector<int> strideWidths;
     int start = 0;

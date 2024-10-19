@@ -17,13 +17,11 @@ using namespace winrt::Windows::Foundation::Numerics;
 using namespace winrt::Windows::UI;
 using namespace winrt::Windows::UI::Composition;
 
-MyCapture::MyCapture(string const& title, string const& className) {
-	m_title = title;
-	m_className = className;
+MyCapture::MyCapture(string const& title, string const& className, com_ptr<ID3D11Device> d3ddevice)
+	: m_title(title), m_className(className), m_d3dDevice(d3ddevice) {
+
 	m_captureRect = { 0, 0, 0, 0 };
 
-	// m_d3dDevice
-	m_d3dDevice = CreateD3DDevice();
 	// m_device
 	auto dxgiDevice = m_d3dDevice.as<IDXGIDevice>();
 	com_ptr<::IInspectable> d3d_device;
@@ -62,20 +60,13 @@ void MyCapture::InitializeCapture(const WindowRect& captureRect) {
 	auto size = SizeInt32{ wndRect.width, wndRect.height };
 	m_lastSize = size;
 
+	// m_item
 	auto item = CreateCaptureItemForWindow(m_hWnd);
 	item.Closed([this](auto&&, auto&&) {
 		m_closed = true;
 		StopCapture();
 	});
 	m_item = item;
-
-	// m_swapChain
-	m_swapChain = CreateDXGISwapChain(
-		m_d3dDevice,
-		static_cast<uint32_t>(m_captureRect.width),
-		static_cast<uint32_t>(m_captureRect.height),
-		static_cast<DXGI_FORMAT>(DirectXPixelFormat::B8G8R8A8UIntNormalized),
-		2);
 
 	// m_framePool
 	auto framePool = Direct3D11CaptureFramePool::CreateFreeThreaded(m_device, DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, size);
@@ -108,16 +99,6 @@ void MyCapture::StopCapture() {
 	}
 }
 
-ICompositionSurface MyCapture::CreateSurface(Compositor const& compositor) {
-	ICompositionSurface surface{ nullptr };
-	auto compositorInterop = compositor.as<ABI::Windows::UI::Composition::ICompositorInterop>();
-	com_ptr<ABI::Windows::UI::Composition::ICompositionSurface> surfaceInterop;
-	check_hresult(compositorInterop->CreateCompositionSurfaceForSwapChain(m_swapChain.get(), surfaceInterop.put()));
-	check_hresult(surfaceInterop->QueryInterface(guid_of<winrt::Windows::UI::Composition::ICompositionSurface>(),
-		reinterpret_cast<void**>(put_abi(surface))));
-	return surface;
-}
-
 void MyCapture::PrepareTexture(com_ptr<IDXGISurface> surface) {
 	DXGI_SURFACE_DESC desc;
 	check_hresult(surface->GetDesc(&desc));
@@ -139,24 +120,6 @@ void MyCapture::PrepareTexture(com_ptr<IDXGISurface> surface) {
 	check_hresult(m_d3dDevice->CreateTexture2D(&textureInDesc, nullptr, textureIn.put()));
 
 	m_textureIn = textureIn;
-
-	auto textureOutDesc = CD3D11_TEXTURE2D_DESC(
-		DXGI_FORMAT_B8G8R8A8_UNORM,
-		m_captureRect.width, m_captureRect.height,
-		1,
-		1,
-		0,
-		D3D11_USAGE_STAGING,
-		D3D11_CPU_ACCESS_WRITE,
-		1,
-		0,
-		0
-	);
-
-	com_ptr<ID3D11Texture2D> textureOut;
-	check_hresult(m_d3dDevice->CreateTexture2D(&textureOutDesc, nullptr, textureOut.put()));
-
-	m_textureOut = textureOut;
 }
 
 void MyCapture::OnFrameArrived(Direct3D11CaptureFramePool const& sender, Foundation::IInspectable const& args) {
@@ -203,41 +166,6 @@ cv::Mat MyCapture::RequestCapture() {
 		this_thread::sleep_for(chrono::milliseconds(10));
 	}
 	return cv::Mat(m_captureRect.height, m_captureRect.width, CV_8UC4, capturedImage);
-}
-
-void MyCapture::SetCanvasImage(cv::Mat const& image)
-{
-	// check channel count
-	if (image.channels() == 1) {
-		// convert to 4 channels
-		cv::Mat bgra;
-		cv::cvtColor(image, bgra, cv::COLOR_GRAY2BGRA);
-		SetCanvasImage(bgra);
-		return;
-	}
-	else if (image.channels() != 4) {
-		throw runtime_error("Invalid channel count");
-	}
-
-	com_ptr<ID3D11Texture2D> backBuffer;
-	check_hresult(m_swapChain->GetBuffer(0, guid_of<ID3D11Texture2D>(), backBuffer.put_void()));
-
-	D3D11_MAPPED_SUBRESOURCE mapOutput;
-	check_hresult(m_d3dContext->Map(m_textureOut.get(), 0, D3D11_MAP_WRITE, 0, &mapOutput));
-
-	for (int y = 0; y < m_captureRect.height; y++) {
-		memcpy(
-			(uint8_t*)(mapOutput.pData) + y * mapOutput.RowPitch,
-			image.ptr<uint8_t>(y),
-			m_captureRect.width * 4
-		);
-	}
-	m_d3dContext->Unmap(m_textureOut.get(), 0);
-
-	m_d3dContext->CopyResource(backBuffer.get(), m_textureOut.get());
-
-	DXGI_PRESENT_PARAMETERS presentParameters = { 0 };
-	m_swapChain->Present1(1, 0, &presentParameters);
 }
 
 SizeInt32 MyCapture::GetCaptureSize() const
