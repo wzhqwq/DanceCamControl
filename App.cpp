@@ -12,6 +12,8 @@ using namespace Windows::UI;
 using namespace Windows::UI::Composition;
 using namespace Windows::Graphics::Capture;
 
+const double pi = 3.14159265358979323846;
+
 void App::Initialize(ContainerVisual const& root) {
     m_canvas->Initialize(root);
 }
@@ -144,8 +146,8 @@ void App::DoFixAngle()
 	m_canvas->SetCanvasImage(canvas);
 
 	// camera vertical fov 60 degree, texture size 800 * 1000
-	float angleVert = atan(((float)center.y / image.rows * 2 - 1) / tan(3.1415926 / 3)) * 180 / 3.1415926;
-	float angleHorz = atan(((float)center.x / image.cols * 2 - 1) * 0.8 / tan(3.1415926 / 3)) * 180 / 3.1415926;
+    float angleVert = (float)(atan(((float)center.y / image.rows * 2 - 1) / tan(pi / 3)) * 180 / pi);
+	float angleHorz = (float)(atan(((float)center.x / image.cols * 2 - 1) * 0.8 / tan(pi / 3)) * 180 / pi);
 	OutputDebugString(std::format(L"angleVert: {}, angleHorz: {}\n", angleVert, angleHorz).c_str());
 
     if (abs(angleVert) > 1) {
@@ -195,17 +197,17 @@ void App::DoFixDistance()
 
 	if (min < 1e-6) {
 		// not a complete view of the playlist, so move backwards
-		m_paraMgr->MoveDrone(2, -1.3);
+		m_paraMgr->MoveDrone(2, -1.3f);
 		return;
 	}
     if (min > 0.2) {
         // too far away from the playlist, so move forwards
-        m_paraMgr->MoveDrone(2, 0.7);
+        m_paraMgr->MoveDrone(2, 0.7f);
         return;
     }
     if (min > 0.1) {
 		// far away from the playlist, so move forwards slowly
-		m_paraMgr->MoveDrone(2, 0.3);
+		m_paraMgr->MoveDrone(2, 0.3f);
 		return;
     }
 
@@ -228,7 +230,7 @@ bool App::CheckSign(const cv::Mat image)
 
     vector<int> strideWidths;
     int start = 0;
-    for (size_t i = 1; i < image.rows; i++) {
+    for (int i = 1; i < image.rows; i++) {
         if (b.at<uint8_t>(i, 0) < 50 && b.at<uint8_t>(i - 1, 0) > 200) {
             start = i;
         }
@@ -239,7 +241,7 @@ bool App::CheckSign(const cv::Mat image)
     if (strideWidths.size() < 2) {
         return false;
     }
-    for (size_t i = 2; i < strideWidths.size() - 1; i++) {
+    for (int i = 2; i < strideWidths.size() - 1; i++) {
         if (abs(strideWidths[i] - strideWidths[1]) > 2) return false;
     }
     return true;
@@ -271,7 +273,7 @@ std::vector<std::vector<cv::Point>> App::GetPlaylistContours(const cv::Mat image
 cv::Point App::GetPlaylistCenter(const std::vector<cv::Point>& contour)
 {
     cv::Moments m = cv::moments(contour);
-    return cv::Point(m.m10 / m.m00, m.m01 / m.m00);
+    return cv::Point((int)(m.m10 / m.m00), (int)(m.m01 / m.m00));
 }
 
 void App::Terminate() {

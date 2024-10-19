@@ -20,8 +20,8 @@ public:
     size_t recv(void* buffer, size_t size);
 
 private:
-    int clientFd;
-	int serverFd;
+    SOCKET clientFd;
+	SOCKET serverFd;
 	sockaddr_in listenAddr;
 	sockaddr_in destAddr;
 };

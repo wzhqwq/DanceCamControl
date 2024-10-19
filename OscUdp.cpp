@@ -30,7 +30,7 @@ OscUdp::OscUdp(int listenPort, int destPort) {
 
 size_t OscUdp::send(const void* buffer, size_t size)
 {
-	size_t ret = sendto(clientFd, (const char*)buffer, size, 0, (sockaddr*)&destAddr, sizeof(destAddr));
+	size_t ret = sendto(clientFd, (const char*)buffer, (int)size, 0, (sockaddr*)&destAddr, sizeof(destAddr));
 	if (ret == SOCKET_ERROR) {
 		throw std::runtime_error(std::format("sendto failed {}", WSAGetLastError()));
 	}
@@ -39,7 +39,7 @@ size_t OscUdp::send(const void* buffer, size_t size)
 
 size_t OscUdp::recv(void* buffer, size_t size)
 {
-	size_t ret = recvfrom(serverFd, (char*)buffer, size, 0, nullptr, nullptr);
+	size_t ret = recvfrom(serverFd, (char*)buffer, (int)size, 0, nullptr, nullptr);
 	if (ret == SOCKET_ERROR) {
 		throw std::runtime_error(std::format("recvfrom failed {}", WSAGetLastError()));
 	}
