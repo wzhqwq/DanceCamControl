@@ -3,6 +3,8 @@
 #include <opencv2/imgproc.hpp>
 #include <opencv2/highgui.hpp>
 #include <cmath>
+#include "WindowCapture.h"
+#include "SpoutCapture.h"
 
 using namespace std;
 using namespace winrt;
@@ -13,6 +15,13 @@ using namespace Windows::UI::Composition;
 using namespace Windows::Graphics::Capture;
 
 const double pi = 3.14159265358979323846;
+
+App::App() : m_d3dDevice(CreateD3DDevice()) {
+    m_canvas = make_unique<Canvas>(m_d3dDevice);
+    //m_capture = make_unique<WindowCapture>("VRChat", "UnityWndClass", m_d3dDevice);
+	m_capture = make_unique<SpoutCapture>(regex("VRCSender"));
+    m_paraMgr = make_unique<ParameterManager>();
+}
 
 void App::Initialize(ContainerVisual const& root) {
     m_canvas->Initialize(root);
@@ -68,15 +77,16 @@ void App::StateMachine() {
 void App::TryCapture()
 {
     try {
-        auto rect = m_capture->GetWindowClientRect();
-
+        m_capture->Initialize([](WindowRect rect) -> WindowRect
+        {
 		int captureWidth = (int)(rect.width * 0.2);
 		int captureHeight = (int)(captureWidth / 0.8);
-        m_capture->InitializeCapture({
+            return {
             0,
 			rect.height - captureHeight,
 			captureWidth,
 			captureHeight
+            };
 		});
 
         m_capture->StartCapture();

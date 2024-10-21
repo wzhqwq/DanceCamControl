@@ -27,7 +27,7 @@
     <ClInclude Include="Osc.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="MyCapture.h">
+    <ClInclude Include="WindowCapture.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="d3dHelpers.h">
@@ -51,6 +51,18 @@
     <ClInclude Include="ParameterManager.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Canvas.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="common.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="SpoutCapture.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="GameCapture.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DanceCamControl.cpp">
@@ -59,7 +71,7 @@
     <ClCompile Include="Osc.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="MyCapture.cpp">
+    <ClCompile Include="WindowCapture.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="App.cpp">
@@ -69,6 +81,15 @@
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="ParameterManager.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Canvas.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="SpoutCapture.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="GameCapture.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>

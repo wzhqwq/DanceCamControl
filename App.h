@@ -1,5 +1,5 @@
 #pragma once
-#include "MyCapture.h"
+#include "GameCapture.h"
 #include <thread>
 #include "ParameterManager.h"
 #include "Canvas.h"
@@ -19,11 +19,7 @@ enum AppStage
 class App
 {
 public:
-	App() : m_d3dDevice(CreateD3DDevice()) {
-		m_canvas = std::make_unique<Canvas>(m_d3dDevice);
-		m_capture = std::make_unique<MyCapture>("VRChat", "UnityWndClass", m_d3dDevice);
-		m_paraMgr = std::make_unique<ParameterManager>();
-	};
+	App();
 	~App() {
 		Terminate();
 	}
@@ -50,7 +46,7 @@ private:
 private:
 	winrt::com_ptr<ID3D11Device> m_d3dDevice;
 
-	std::unique_ptr<MyCapture> m_capture;
+	std::unique_ptr<GameCapture> m_capture;
 	std::unique_ptr<Canvas> m_canvas;
 	std::unique_ptr<ParameterManager> m_paraMgr;
 

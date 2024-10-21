@@ -73,7 +73,7 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <IncludePath>$(ProjectDir)include;$(VC_IncludePath);$(WindowsSDK_IncludePath);</IncludePath>
-    <ExternalIncludePath>$(OPENCV_DIR)\..\..\include;$(ExternalIncludePath)</ExternalIncludePath>
+    <ExternalIncludePath>$(OPENCV_DIR)\..\..\include;$(SPOUT_DIR)\..\include\SpoutDX;$(ExternalIncludePath)</ExternalIncludePath>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -117,8 +117,8 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalDependencies>WindowsApp.lib;opencv_world4100.lib;opencv_world4100d.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <AdditionalLibraryDirectories>$(OPENCV_DIR)\lib</AdditionalLibraryDirectories>
+      <AdditionalDependencies>WindowsApp.lib;opencv_world4100.lib;opencv_world4100d.lib;SpoutDX.lib;SpoutDX_static.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>$(OPENCV_DIR)\lib;$(SPOUT_DIR)\lib</AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -139,10 +139,14 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="App.h" />
+    <ClInclude Include="Canvas.h" />
     <ClInclude Include="capture.interop.h" />
+    <ClInclude Include="common.h" />
     <ClInclude Include="d3dHelpers.h" />
     <ClInclude Include="direct3d11.interop.h" />
-    <ClInclude Include="MyCapture.h" />
+    <ClInclude Include="GameCapture.h" />
+    <ClInclude Include="SpoutCapture.h" />
+    <ClInclude Include="WindowCapture.h" />
     <ClInclude Include="DanceCamControl.h" />
     <ClInclude Include="Osc.h" />
     <ClInclude Include="framework.h" />
@@ -153,7 +157,10 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="App.cpp" />
-    <ClCompile Include="MyCapture.cpp" />
+    <ClCompile Include="Canvas.cpp" />
+    <ClCompile Include="GameCapture.cpp" />
+    <ClCompile Include="SpoutCapture.cpp" />
+    <ClCompile Include="WindowCapture.cpp" />
     <ClCompile Include="DanceCamControl.cpp" />
     <ClCompile Include="Osc.cpp" />
     <ClCompile Include="OscUdp.cpp" />

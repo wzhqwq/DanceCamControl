@@ -1,5 +1,5 @@
 #include "framework.h"
-#include "MyCapture.h"
+#include "WindowCapture.h"
 #include "d3dHelpers.h"
 #include "capture.interop.h"
 #include <format>
@@ -17,7 +17,7 @@ using namespace winrt::Windows::Foundation::Numerics;
 using namespace winrt::Windows::UI;
 using namespace winrt::Windows::UI::Composition;
 
-MyCapture::MyCapture(string const& title, string const& className, com_ptr<ID3D11Device> d3ddevice)
+WindowCapture::WindowCapture(string const& title, string const& className, com_ptr<ID3D11Device> d3ddevice)
 	: m_title(title), m_className(className), m_d3dDevice(d3ddevice) {
 
 	m_captureRect = { 0, 0, 0, 0 };
@@ -31,14 +31,14 @@ MyCapture::MyCapture(string const& title, string const& className, com_ptr<ID3D1
 	m_d3dDevice->GetImmediateContext(m_d3dContext.put());
 }
 
-void MyCapture::FindWindow() {
+void WindowCapture::FindWindow() {
 	m_hWnd = FindWindowA((LPCSTR)m_className.c_str(), (LPCSTR)m_title.c_str());
 	if (m_hWnd == nullptr) {
 		throw runtime_error(format("Window not found: title={}, className={}", m_title, m_className));
 	}
 }
 
-WindowRect MyCapture::GetWindowClientRect() {
+WindowRect WindowCapture::GetGameTotalRect() {
 	if (m_hWnd == nullptr) {
 		FindWindow();
 	}
@@ -47,15 +47,16 @@ WindowRect MyCapture::GetWindowClientRect() {
 	return { rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top };
 }
 
-void MyCapture::InitializeCapture(const WindowRect& captureRect) {
-	auto wndRect = GetWindowClientRect();
+void WindowCapture::Initialize(function<WindowRect(WindowRect)> calculateCaptureRect) {
+	auto wndRect = GetGameTotalRect();
 
-	m_captureRect = captureRect;
+	m_captureRect = calculateCaptureRect(wndRect);
+	m_calculateCaptureRect = calculateCaptureRect;
 
-	if (capturedImage != nullptr) {
-		delete[] capturedImage;
+	if (m_capturedImage != nullptr) {
+		delete[] m_capturedImage;
 	}
-	capturedImage = new uint8_t[m_captureRect.width * m_captureRect.height * 4];
+	m_capturedImage = new uint8_t[m_captureRect.width * m_captureRect.height * 4];
 
 	auto size = SizeInt32{ wndRect.width, wndRect.height };
 	m_lastSize = size;
@@ -63,14 +64,13 @@ void MyCapture::InitializeCapture(const WindowRect& captureRect) {
 	// m_item
 	auto item = CreateCaptureItemForWindow(m_hWnd);
 	item.Closed([this](auto&&, auto&&) {
-		m_closed = true;
 		StopCapture();
 	});
 	m_item = item;
 
 	// m_framePool
 	auto framePool = Direct3D11CaptureFramePool::CreateFreeThreaded(m_device, DirectXPixelFormat::B8G8R8A8UIntNormalized, 2, size);
-	m_frameArrived = framePool.FrameArrived(auto_revoke, { this, &MyCapture::OnFrameArrived });
+	m_frameArrived = framePool.FrameArrived(auto_revoke, { this, &WindowCapture::OnFrameArrived });
 	m_framePool = framePool;
 
 	// m_session
@@ -78,28 +78,28 @@ void MyCapture::InitializeCapture(const WindowRect& captureRect) {
 	m_session = session;
 }
 
-void MyCapture::StartCapture() {
+void WindowCapture::StartCapture() {
 	m_session.StartCapture();
-	m_closed = false;
+	m_state = GameCaptureState::Idle;
 }
 
-void MyCapture::StopCapture() {
-	if (!m_closed) {
+void WindowCapture::StopCapture() {
+	if (m_state != GameCaptureState::Closed) {
 		m_session.Close();
 		m_frameArrived.revoke();
 		m_framePool.Close();
-		m_closed = true;
+		m_state = GameCaptureState::Closed;
 	}
 	m_framePool = nullptr;
 	m_session = nullptr;
 	m_item = nullptr;
-	if (capturedImage != nullptr) {
-		delete[] capturedImage;
-		capturedImage = nullptr;
+	if (m_capturedImage != nullptr) {
+		delete[] m_capturedImage;
+		m_capturedImage = nullptr;
 	}
 }
 
-void MyCapture::PrepareTexture(com_ptr<IDXGISurface> surface) {
+void WindowCapture::PrepareTexture(com_ptr<IDXGISurface> surface) {
 	DXGI_SURFACE_DESC desc;
 	check_hresult(surface->GetDesc(&desc));
 
@@ -122,15 +122,15 @@ void MyCapture::PrepareTexture(com_ptr<IDXGISurface> surface) {
 	m_textureIn = textureIn;
 }
 
-void MyCapture::OnFrameArrived(Direct3D11CaptureFramePool const& sender, Foundation::IInspectable const& args) {
-	if (m_closed) {
+void WindowCapture::OnFrameArrived(Direct3D11CaptureFramePool const& sender, Foundation::IInspectable const& args) {
+	if (m_state == GameCaptureState::Closed) {
 		return;
 	}
 	auto frame = sender.TryGetNextFrame();
-	if (frame == nullptr || !requested) {
+	if (frame == nullptr || m_state != GameCaptureState::Requested) {
 		return;
 	}
-	requested = false;
+	m_state = GameCaptureState::Processing;
 
 	auto surface = frame.Surface();
 	auto const interop = surface.as<IDirect3DDxgiInterfaceAccess>();
@@ -152,23 +152,12 @@ void MyCapture::OnFrameArrived(Direct3D11CaptureFramePool const& sender, Foundat
 
 	for (int y = 0; y < m_captureRect.height; y++) {
 		memcpy(
-			capturedImage + y * m_captureRect.width * 4,
+			m_capturedImage + y * m_captureRect.width * 4,
 			(uint8_t *)(mapInput.pData) + (y + m_captureRect.y) * mapInput.RowPitch + m_captureRect.x * 4,
 			m_captureRect.width * 4
 		);
 	}
 	m_d3dContext->Unmap(m_textureIn.get(), 0);
-}
 
-cv::Mat MyCapture::RequestCapture() {
-	requested = true;
-	while (requested && !m_closed) {
-		this_thread::sleep_for(chrono::milliseconds(10));
-	}
-	return cv::Mat(m_captureRect.height, m_captureRect.width, CV_8UC4, capturedImage);
-}
-
-SizeInt32 MyCapture::GetCaptureSize() const
-{
-	return SizeInt32{ m_captureRect.width, m_captureRect.height };
+	m_state = GameCaptureState::Finished;
 }
