@@ -36,6 +36,7 @@ template<typename T>
 inline void ParameterManager::SetParameter(const char* parameter, T value)
 {
 	if (CheckDuplicate(parameter, value)) return;
+	OutputDebugStringA(std::format("SetParameter: {} {}\n", parameter, std::to_string(value)).c_str());
 	m_osc->SetParameter(std::format("danceCam/{}", parameter).c_str(), value);
 }
 

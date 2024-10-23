@@ -27,6 +27,10 @@ void ParameterManager::MoveDrone(int axis, float value)
     SetParameter("UpdateDelta", value);
     SetParameter("UpdateDrone", true);
     m_droneStage = Sending;
+
+    while (m_droneStage != Finished) {
+		std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
 }
 
 bool ParameterManager::IsAvailable()
