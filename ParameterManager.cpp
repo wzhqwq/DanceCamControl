@@ -7,6 +7,8 @@ std::map<std::string, int> ignoreCheckList = {
     {"UpdateDrone", 0},
 };
 
+const double pi = 3.14159265358979323846;
+
 void ParameterManager::Start()
 {
     m_osc = std::make_unique<Osc>(9001, 9000, [this](OSCPP::Server::Message const& m) {
@@ -21,7 +23,7 @@ void ParameterManager::MoveDrone(int axis, float value)
         value /= 1000;
     }
     else {
-        value /= 180;
+        value /= pi;
     }
     SetParameter("UpdateAxis", axis);
     SetParameter("UpdateDelta", value);

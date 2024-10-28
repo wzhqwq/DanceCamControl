@@ -14,6 +14,7 @@ enum AppStage
 	FixAngle,
 	FixDistance,
 	StereoAlign,
+	AlignFinished,
 };
 
 class App
@@ -43,6 +44,7 @@ private:
 	std::vector<std::vector<cv::Point>> GetPlaylistContours(const cv::Mat image);
 	cv::Point GetPlaylistCenter(const std::vector<cv::Point>& contour);
 	std::vector<cv::Point> GetPlaylistCorners(const std::vector<cv::Point>& contour);
+	float GetMinBboxMargin(const std::vector<std::vector<cv::Point>>& contours, int imageWidth, int imageHeight);
 
 private:
 	winrt::com_ptr<ID3D11Device> m_d3dDevice;
@@ -60,7 +62,7 @@ private:
 	bool m_maskChanged = false;
 
 	// distance fixing
-	bool m_blankBackRetried = false;
 	float m_nextStep = 3.0f;
+	bool m_overForwarded = false;
 };
 
